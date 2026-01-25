@@ -1,16 +1,33 @@
-# React + Vite
+# F1 News Image Generator
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A premium, Apple-style F1 news image generator designed for high efficiency on both desktop and mobile.
 
-Currently, two official plugins are available:
+## Features
+- ⚡️ **Vite + React** for extreme speed.
+- 🍏 **Apple Aesthetics**: Glassmorphism, smooth animations, and SF Pro typography.
+- 📱 **Mobile Optimized**: 2/3 Fixed Preview + 1/3 Scrollable Controls layout.
+- 🎨 **Precision Controls**: Sliders + Numeric inputs for every parameter.
+- 🔡 **Chinese Support**: Integrated 'SourceHanSansTC' font for beautiful Chinese rendering.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Deployment to Vercel
 
-## React Compiler
+1. **Push to GitHub**:
+   ```bash
+   git add .
+   git commit -m "Prepare for deployment"
+   git push origin main
+   ```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+2. **Connect to Vercel**:
+   - Go to [vercel.com](https://vercel.com) and click **"Add New"** > **"Project"**.
+   - Select your GitHub repository.
+   - Vercel will automatically detect **Vite**.
+   - Click **"Deploy"**.
 
-## Expanding the ESLint configuration
+3. **Done!** Your app will be live on a `vercel.app` domain.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Local Development
+```bash
+npm install
+npm run dev
+```

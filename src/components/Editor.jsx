@@ -133,7 +133,7 @@ const Editor = ({ templateType, onBack }) => {
         // TODO: Advanced text rendering
         texts.forEach(t => {
             ctx.fillStyle = "white";
-            ctx.font = `bold ${t.fontSize}px 'Outfit', sans-serif`; // Or custom font
+            ctx.font = `bold ${t.fontSize}px 'SourceHanSansTC', sans-serif`; // Use the loaded Chinese font
             ctx.textAlign = t.align;
             ctx.fillText(t.text, t.x, t.y);
         });
@@ -292,19 +292,19 @@ const Editor = ({ templateType, onBack }) => {
                     onMouseLeave={handleMouseUp}
                 >
                     {/* Background Layer */}
-                    <div className="layer-bg" style={{
-                        backgroundImage: bgImage ? `url(${bgImage})` : 'none',
-                        transform: `translate(${bgPosition.x}px, ${bgPosition.y}px) scale(${bgPosition.scale})`,
-                        backgroundSize: 'cover' // Actually we need 'contain' or raw image sizing
-                        // Better: Use IMG tag
-                    }}>
-                        {bgImage && <img src={bgImage} style={{
-                            // This is tricky for exact matching canvas. 
-                            // Let's position center-center
-                            position: 'absolute',
-                            left: '50%', top: '50%',
-                            transform: 'translate(-50%, -50%)'
-                        }} draggable={false} />}
+                    <div className="layer-bg">
+                        {bgImage && <img
+                            src={bgImage}
+                            style={{
+                                position: 'absolute',
+                                left: '50%',
+                                top: '50%',
+                                transform: `translate(-50%, -50%) translate(${bgPosition.x}px, ${bgPosition.y}px) scale(${bgPosition.scale})`,
+                                maxWidth: 'none',
+                                maxHeight: 'none'
+                            }}
+                            draggable={false}
+                        />}
                     </div>
 
                     {/* Template Layer */}
