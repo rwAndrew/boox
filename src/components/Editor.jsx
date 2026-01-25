@@ -54,17 +54,33 @@ const Editor = ({ templateType, onBack }) => {
         }
     };
 
-    // Unified Drag Logic
-    const handleStart = (cx, cy) => {
-        if (event?.target?.closest('.precision-input')) return; // Don't drag when typing
+    // Unified Drag & Zoom Logic
+    const lastTouchDistance = useRef(null);
+
+    const handleStart = (cx, cy, touchCount = 1, distance = null) => {
+        if (event?.target?.closest('.precision-input')) return;
         isDragging.current = true;
         lastPos.current = { x: cx, y: cy };
+        lastTouchDistance.current = distance;
     };
 
-    const handleMove = (cx, cy) => {
+    const handleMove = (cx, cy, touchCount = 1, distance = null) => {
         if (!isDragging.current || !bgImage) return;
 
-        // Key fix: Account for preview scale in movement
+        // Handle Zoom (Pinch)
+        if (touchCount === 2 && distance && lastTouchDistance.current) {
+            const zoomFactor = distance / lastTouchDistance.current;
+            setBgPosition(prev => ({
+                ...prev,
+                scale: Math.max(0.1, Math.min(10, prev.scale * zoomFactor))
+            }));
+            lastTouchDistance.current = distance;
+            // Update lastPos to help prevent "jump" after pinch
+            lastPos.current = { x: cx, y: cy };
+            return;
+        }
+
+        // Handle Drag
         const dx = (cx - lastPos.current.x) / previewScale;
         const dy = (cy - lastPos.current.y) / previewScale;
 
@@ -79,6 +95,33 @@ const Editor = ({ templateType, onBack }) => {
 
     const handleEnd = () => {
         isDragging.current = false;
+        lastTouchDistance.current = null;
+    };
+
+    // Touch Event Mapping
+    const getTouchInfo = (e) => {
+        const touches = e.touches;
+        if (touches.length >= 2) {
+            const dx = touches[0].clientX - touches[1].clientX;
+            const dy = touches[0].clientY - touches[1].clientY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const centerX = (touches[0].clientX + touches[1].clientX) / 2;
+            const centerY = (touches[0].clientY + touches[1].clientY) / 2;
+            return { x: centerX, y: centerY, count: 2, distance };
+        } else if (touches.length === 1) {
+            return { x: touches[0].clientX, y: touches[0].clientY, count: 1, distance: null };
+        }
+        return null;
+    };
+
+    const onTouchStart = (e) => {
+        const info = getTouchInfo(e);
+        if (info) handleStart(info.x, info.y, info.count, info.distance);
+    };
+
+    const onTouchMove = (e) => {
+        const info = getTouchInfo(e);
+        if (info) handleMove(info.x, info.y, info.count, info.distance);
     };
 
     const fileInputRef = useRef(null);
@@ -147,8 +190,8 @@ const Editor = ({ templateType, onBack }) => {
                     onMouseMove={(e) => handleMove(e.clientX, e.clientY)}
                     onMouseUp={handleEnd}
                     onMouseLeave={handleEnd}
-                    onTouchStart={(e) => handleStart(e.touches[0].clientX, e.touches[0].clientY)}
-                    onTouchMove={(e) => handleMove(e.touches[0].clientX, e.touches[0].clientY)}
+                    onTouchStart={onTouchStart}
+                    onTouchMove={onTouchMove}
                     onTouchEnd={handleEnd}
                 >
                     {/* Image Layer */}
