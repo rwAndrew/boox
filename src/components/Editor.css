@@ -330,50 +330,66 @@ input[type=range]::-webkit-slider-runnable-track {
 /* Mobile Optimization */
 @media (max-width: 768px) {
     .editor-container {
-        flex-direction: column;
+        flex-direction: column-reverse;
+        /* Canvas on top, sidebar at bottom */
         height: 100vh;
         width: 100vw;
         overflow: hidden;
     }
 
     .editor-canvas-area {
-        height: 66.67vh;
+        height: 60vh;
+        /* Adjusted to give more space for buttons below */
         flex: none;
         background: #000;
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 1rem;
+        padding: 10px;
         z-index: 10;
         border-bottom: 1px solid var(--color-border);
     }
 
     .canvas-viewport {
-        max-width: 90vw !important;
-        max-height: calc(66.67vh - 40px) !important;
+        max-width: 95vw !important;
+        max-height: calc(60vh - 20px) !important;
         width: auto !important;
         aspect-ratio: 4 / 5;
         height: auto !important;
+        box-shadow: 0 0 20px rgba(255, 255, 255, 0.05);
     }
 
     .editor-sidebar {
-        height: 33.33vh;
+        height: 40vh;
+        /* 40% for controls to avoid cutoff */
         width: 100%;
         border-right: none;
-        background: rgba(15, 15, 15, 1);
-        padding: 1.5rem;
-        padding-bottom: 5rem;
+        background: #0f0f0f;
+        padding: 1rem;
+        padding-bottom: 80px;
+        /* Space for fixed download button */
         overflow-y: auto;
-        flex: 1;
+        flex: none;
         z-index: 20;
     }
 
     .download-btn {
         position: fixed;
-        bottom: 1rem;
-        left: 1rem;
-        right: 1rem;
+        bottom: 20px;
+        left: 20px;
+        right: 20px;
+        margin-top: 0;
         z-index: 100;
+        box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .editor-sidebar button {
+        min-height: 44px;
+        /* Essential for touch */
+    }
+
+    .control-group {
+        gap: 1.5rem;
     }
 }
 
