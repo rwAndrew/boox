@@ -1,0 +1,84 @@
+:root {
+  --color-bg: #000000;
+  --color-surface: rgba(28, 28, 30, 0.85);
+  /* Apple dark blur */
+  --color-surface-hover: rgba(44, 44, 46, 0.9);
+  --color-primary: #ff3b30;
+  /* Apple system red */
+  --color-text: #f5f5f7;
+  /* Apple San Francisco white */
+  --color-text-dim: #86868b;
+  --color-border: rgba(255, 255, 255, 0.12);
+
+  --font-main: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+
+  --transition: all 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+  /* Apple ease-out */
+  --backdrop-blur: 20px;
+}
+
+@font-face {
+  font-family: 'SourceHanSansTC';
+  src: url('/SourceHanSansTC-Bold.otf') format('opentype');
+  font-weight: bold;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-main);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button {
+  font-family: var(--font-main);
+  border: none;
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+}
+
+/* Apple-style smooth scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #424245;
+  border-radius: 10px;
+  border: 2px solid var(--color-bg);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #565659;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.6s var(--transition) forwards;
+}
