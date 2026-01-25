@@ -320,11 +320,11 @@ const Editor = ({ templateType, onBack }) => {
                         + 新增文字
                     </button>
                 </div>
-
-                <button className="download-btn" onClick={handleDownload}>
-                    下載圖片 (Download)
-                </button>
             </div>
+
+            <button className="download-btn" onClick={handleDownload}>
+                下載圖片 (Download)
+            </button>
         </div>
     );
 };
