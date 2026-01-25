@@ -37,19 +37,17 @@ const Editor = ({ templateType, onBack }) => {
         }
     };
 
-    // Handlers - Background Dragging
-    const handleMouseDown = (e) => {
-        // Only drag if not clicking text
-        if (e.target.closest('.text-layer')) return;
+    // Handlers - Background Dragging (Unified Mouse & Touch)
+    const handleStart = (clientX, clientY) => {
         isDragging.current = true;
-        lastPos.current = { x: e.clientX, y: e.clientY };
+        lastPos.current = { x: clientX, y: clientY };
     };
 
-    const handleMouseMove = (e) => {
+    const handleMove = (clientX, clientY) => {
         if (!isDragging.current || !bgImage) return;
-        const dx = e.clientX - lastPos.current.x;
-        const dy = e.clientY - lastPos.current.y;
-        lastPos.current = { x: e.clientX, y: e.clientY };
+        const dx = clientX - lastPos.current.x;
+        const dy = clientY - lastPos.current.y;
+        lastPos.current = { x: clientX, y: clientY };
 
         setBgPosition(prev => ({
             ...prev,
@@ -58,9 +56,28 @@ const Editor = ({ templateType, onBack }) => {
         }));
     };
 
-    const handleMouseUp = () => {
+    const handleEnd = () => {
         isDragging.current = false;
     };
+
+    // Mouse Events
+    const onMouseDown = (e) => {
+        if (e.target.closest('.text-layer')) return;
+        handleStart(e.clientX, e.clientY);
+    };
+    const onMouseMove = (e) => handleMove(e.clientX, e.clientY);
+    const onMouseUp = () => handleEnd();
+
+    // Touch Events
+    const onTouchStart = (e) => {
+        const touch = e.touches[0];
+        handleStart(touch.clientX, touch.clientY);
+    };
+    const onTouchMove = (e) => {
+        const touch = e.touches[0];
+        handleMove(touch.clientX, touch.clientY);
+    };
+    const onTouchEnd = () => handleEnd();
 
     // Renderer
     const handleDownload = async () => {
@@ -286,10 +303,13 @@ const Editor = ({ templateType, onBack }) => {
                     className="canvas-viewport"
                     ref={containerRef}
                     style={{ width: 540, height: 675 }} // 50% scale representation
-                    onMouseDown={handleMouseDown}
-                    onMouseMove={handleMouseMove}
-                    onMouseUp={handleMouseUp}
-                    onMouseLeave={handleMouseUp}
+                    onMouseDown={onMouseDown}
+                    onMouseMove={onMouseMove}
+                    onMouseUp={onMouseUp}
+                    onMouseLeave={onMouseUp}
+                    onTouchStart={onTouchStart}
+                    onTouchMove={onTouchMove}
+                    onTouchEnd={onTouchEnd}
                 >
                     {/* Background Layer */}
                     <div className="layer-bg">
@@ -310,18 +330,20 @@ const Editor = ({ templateType, onBack }) => {
                     {/* Template Layer */}
                     <img src={templateSrc} className="layer-template" draggable={false} />
 
-                    {/* Text Layer - Simple Overlay for now */}
+                    {/* Text Layer */}
                     {texts.map(t => (
                         <div
                             key={t.id}
                             className="layer-text"
                             style={{
-                                left: t.x / 2, // Scale to 50%
+                                left: t.x / 2,
                                 top: t.y / 2,
                                 fontSize: t.fontSize / 2,
                                 textAlign: t.align,
-                                transform: t.align === 'center' ? 'translate(-50%, 0)' :
-                                    t.align === 'right' ? 'translate(-100%, 0)' : 'translate(0, 0)',
+                                transform: t.align === 'center' ? 'translateX(-50%)' :
+                                    t.align === 'right' ? 'translateX(-100%)' : 'none',
+                                whiteSpace: 'pre-wrap',
+                                width: t.align === 'center' ? '90%' : 'auto' // Give space for centering wrapping
                             }}
                         >
                             {t.text}

@@ -319,12 +319,7 @@ input[type=range]::-webkit-slider-runnable-track {
     font-family: 'SourceHanSansTC', sans-serif;
     z-index: 20;
     text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
-    white-space: pre-wrap;
-    text-align: center;
     pointer-events: none;
-    /* For now, text interaction via sidebar */
-    width: 100%;
-    /* assume centered */
 }
 
 /* Mobile Optimization */
