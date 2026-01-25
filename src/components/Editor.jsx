@@ -151,7 +151,8 @@ const Editor = ({ templateType, onBack }) => {
         const tpl = new Image();
         tpl.src = templateSrc;
         await new Promise(r => tpl.onload = r);
-        ctx.drawImage(tpl, 0, 0, TEMPLATE_SIZE.w, TEMPLATE_SIZE.h);
+        // Draw template slightly larger (0.5px) to ensure no sub-pixel bleeding at edges
+        ctx.drawImage(tpl, -1, -1, TEMPLATE_SIZE.w + 2, TEMPLATE_SIZE.h + 2);
 
         // 3. Text
         texts.forEach(t => {
@@ -255,16 +256,13 @@ const Editor = ({ templateType, onBack }) => {
                     <div className="slider-group">
                         <div className="label-wrapper">
                             <label>縮放 (Scale)</label>
-                            <input
-                                type="number"
-                                className="precision-input"
-                                value={bgPosition.scale.toFixed(2)}
-                                step="0.01"
-                                onChange={e => setBgPosition({ ...bgPosition, scale: parseFloat(e.target.value) || 0 })}
-                            />
+                            <span className="value-display">{bgPosition.scale.toFixed(2)}</span>
                         </div>
                         <input
-                            type="range" min="0.1" max="5" step="0.01"
+                            type="range"
+                            min="0.1"
+                            max="5"
+                            step="0.01"
                             value={bgPosition.scale}
                             onChange={e => setBgPosition({ ...bgPosition, scale: parseFloat(e.target.value) })}
                         />

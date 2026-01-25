@@ -189,12 +189,27 @@
     color: #fff;
 }
 
+.value-display {
+    font-size: 0.8rem;
+    color: #007aff;
+    font-weight: 600;
+    background: rgba(0, 122, 255, 0.1);
+    padding: 2px 8px;
+    border-radius: 6px;
+}
+
 /* Precision & Range */
 .slider-group,
 .size-control {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 12px;
+}
+
+input[type="range"] {
+    display: block;
+    width: 100%;
+    height: 20px;
 }
 
 .label-wrapper {
