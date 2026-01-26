@@ -20,10 +20,16 @@ const Editor = ({ templateType, onBack }) => {
 
     // Initialize Default Text
     useEffect(() => {
-        setTexts([
-            { id: 1, text: "在此輸入標題...", x: 540, y: 1150, fontSize: 80, align: 'center' }
-        ]);
-    }, []);
+        if (templateType === 'breaking') {
+            setTexts([
+                { id: 1, text: "在此輸入標題...", x: 540, y: 1120, fontSize: 80, align: 'center' }
+            ]);
+        } else {
+            setTexts([
+                { id: 1, text: "在這裡輸入名言...", x: 540, y: 560, fontSize: 70, align: 'center' }
+            ]);
+        }
+    }, [templateType]);
 
     // Auto-scale preview to fit screen
     useLayoutEffect(() => {
@@ -39,9 +45,12 @@ const Editor = ({ templateType, onBack }) => {
             setPreviewScale(Math.min(scaleW, scaleH, 1));
         };
 
-        updateScale();
+        const timer = setTimeout(updateScale, 100);
         window.addEventListener('resize', updateScale);
-        return () => window.removeEventListener('resize', updateScale);
+        return () => {
+            window.removeEventListener('resize', updateScale);
+            clearTimeout(timer);
+        };
     }, []);
 
     // Image Upload
@@ -49,8 +58,14 @@ const Editor = ({ templateType, onBack }) => {
         const file = e.target.files[0];
         if (file) {
             const url = URL.createObjectURL(file);
-            setBgImage(url);
-            setBgPosition({ x: 0, y: 0, scale: 1 });
+            const img = new Image();
+            img.onload = () => {
+                // Auto center and cover
+                const scale = Math.max(TEMPLATE_SIZE.w / img.width, TEMPLATE_SIZE.h / img.height);
+                setBgImage(url);
+                setBgPosition({ x: 0, y: 0, scale: scale });
+            };
+            img.src = url;
         }
     };
 
@@ -58,7 +73,6 @@ const Editor = ({ templateType, onBack }) => {
     const lastTouchDistance = useRef(null);
 
     const handleStart = (cx, cy, touchCount = 1, distance = null) => {
-        if (event?.target?.closest('.precision-input')) return;
         isDragging.current = true;
         lastPos.current = { x: cx, y: cy };
         lastTouchDistance.current = distance;
@@ -72,11 +86,9 @@ const Editor = ({ templateType, onBack }) => {
             const zoomFactor = distance / lastTouchDistance.current;
             setBgPosition(prev => ({
                 ...prev,
-                scale: Math.max(0.1, Math.min(10, prev.scale * zoomFactor))
+                scale: Math.max(0.05, Math.min(20, prev.scale * zoomFactor))
             }));
             lastTouchDistance.current = distance;
-            // Update lastPos to help prevent "jump" after pinch
-            lastPos.current = { x: cx, y: cy };
             return;
         }
 
@@ -115,16 +127,45 @@ const Editor = ({ templateType, onBack }) => {
     };
 
     const onTouchStart = (e) => {
-        const info = getTouchInfo(e);
-        if (info) handleStart(info.x, info.y, info.count, info.distance);
+        // Prevent default only if not interacting with controls
+        if (e.target.closest('.canvas-viewport')) {
+            const info = getTouchInfo(e);
+            if (info) handleStart(info.x, info.y, info.count, info.distance);
+        }
     };
 
     const onTouchMove = (e) => {
-        const info = getTouchInfo(e);
-        if (info) handleMove(info.x, info.y, info.count, info.distance);
+        if (isDragging.current) {
+            if (e.cancelable) e.preventDefault(); // CRITICAL for mobile drag
+            const info = getTouchInfo(e);
+            if (info) handleMove(info.x, info.y, info.count, info.distance);
+        }
     };
 
     const fileInputRef = useRef(null);
+
+    const wrapText = (ctx, text, x, y, maxWidth, lineHeight) => {
+        const paragraphs = text.split('\n');
+        let currentY = y;
+
+        paragraphs.forEach(paragraph => {
+            let line = '';
+            for (let n = 0; n < paragraph.length; n++) {
+                let testLine = line + paragraph[n];
+                let metrics = ctx.measureText(testLine);
+                let testWidth = metrics.width;
+                if (testWidth > maxWidth && n > 0) {
+                    ctx.fillText(line, x, currentY);
+                    line = paragraph[n];
+                    currentY += lineHeight;
+                } else {
+                    line = testLine;
+                }
+            }
+            ctx.fillText(line, x, currentY);
+            currentY += lineHeight;
+        });
+    };
 
     const handleDownload = async () => {
         const canvas = document.createElement('canvas');
@@ -132,49 +173,67 @@ const Editor = ({ templateType, onBack }) => {
         canvas.height = TEMPLATE_SIZE.h;
         const ctx = canvas.getContext('2d');
 
-        // 1. Bg
+        // Fill background black first
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // 1. Bg Image
         if (bgImage) {
             const img = new Image();
             img.src = bgImage;
-            await new Promise(r => img.onload = r);
+            await new Promise((resolve) => {
+                img.onload = resolve;
+                img.onerror = resolve; // Continue anyway if it fails
+            });
+
             ctx.save();
             ctx.translate(TEMPLATE_SIZE.w / 2 + bgPosition.x, TEMPLATE_SIZE.h / 2 + bgPosition.y);
             ctx.scale(bgPosition.scale, bgPosition.scale);
             ctx.drawImage(img, -img.width / 2, -img.height / 2);
             ctx.restore();
-        } else {
-            ctx.fillStyle = "#000";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
 
-        // 2. Template
+        // 2. Template Overlay
         const tpl = new Image();
         tpl.src = templateSrc;
         await new Promise(r => tpl.onload = r);
-        // Draw template slightly larger (0.5px) to ensure no sub-pixel bleeding at edges
+        // Draw template slightly larger to avoid gaps
         ctx.drawImage(tpl, -1, -1, TEMPLATE_SIZE.w + 2, TEMPLATE_SIZE.h + 2);
 
-        // 3. Text
+        // 3. Texts
         texts.forEach(t => {
+            ctx.save();
             ctx.fillStyle = "white";
+            // Ensure font is bold and high res
             ctx.font = `bold ${t.fontSize}px 'SourceHanSansTC', sans-serif`;
             ctx.textAlign = t.align;
             ctx.textBaseline = 'top';
 
-            let drawX = t.x;
-            if (t.align === 'center') drawX = 540; // Force center if requested
+            // Add shadow to match CSS (optional, but makes it look better)
+            ctx.shadowColor = 'rgba(0,0,0,0.8)';
+            ctx.shadowBlur = 15;
+            ctx.shadowOffsetY = 4;
 
-            ctx.fillText(t.text, drawX, t.y);
+            let drawX = t.x;
+            if (t.align === 'center') drawX = 540;
+            else if (t.align === 'right') drawX = 1080 * 0.95; // Reasonable margin
+            else if (t.align === 'left') drawX = 1080 * 0.05;
+
+            const maxWidth = TEMPLATE_SIZE.w * (t.align === 'center' ? 0.9 : 0.85);
+            const lineHeight = t.fontSize * 1.25;
+
+            wrapText(ctx, t.text, drawX, t.y, maxWidth, lineHeight);
+            ctx.restore();
         });
 
         const link = document.createElement('a');
-        link.download = `f1-news-${Date.now()}.jpg`;
-        link.href = canvas.toDataURL('image/jpeg', 0.95);
+        link.download = `f1-news-${templateType}-${Date.now()}.jpg`;
+        link.href = canvas.toDataURL('image/jpeg', 0.92); // Slightly lower to keep file sizes sane but high quality
         link.click();
     };
 
     return (
-        <div className="editor-container">
+        <div className="editor-container" onTouchMove={onTouchMove}>
             {/* Top Area: Canvas Preview */}
             <div className="editor-canvas-area" ref={containerRef}>
                 <div
@@ -188,11 +247,14 @@ const Editor = ({ templateType, onBack }) => {
                         position: 'absolute'
                     }}
                     onMouseDown={(e) => handleStart(e.clientX, e.clientY)}
-                    onMouseMove={(e) => handleMove(e.clientX, e.clientY)}
+                    onMouseMove={(e) => {
+                        if (isDragging.current) {
+                            handleMove(e.clientX, e.clientY);
+                        }
+                    }}
                     onMouseUp={handleEnd}
                     onMouseLeave={handleEnd}
                     onTouchStart={onTouchStart}
-                    onTouchMove={onTouchMove}
                     onTouchEnd={handleEnd}
                 >
                     {/* Image Layer */}
@@ -221,16 +283,17 @@ const Editor = ({ templateType, onBack }) => {
                             key={t.id}
                             className="layer-text"
                             style={{
-                                left: t.align === 'center' ? '50%' : t.x,
+                                left: t.align === 'center' ? '50%' : t.align === 'left' ? '5%' : '95%',
                                 top: t.y,
                                 fontSize: t.fontSize,
                                 textAlign: t.align,
                                 transform: t.align === 'center' ? 'translateX(-50%)' :
                                     t.align === 'right' ? 'translateX(-100%)' : 'none',
-                                width: t.align === 'center' ? '90%' : 'auto',
+                                width: t.align === 'center' ? '90%' : '85%',
                                 position: 'absolute',
                                 whiteSpace: 'pre-wrap',
-                                wordBreak: 'break-word'
+                                wordBreak: 'break-word',
+                                lineHeight: 1.25
                             }}
                         >
                             {t.text}
@@ -239,92 +302,107 @@ const Editor = ({ templateType, onBack }) => {
                 </div>
             </div>
 
-            {/* Bottom Area: Sidebar/Controls */}
-            <div className="editor-sidebar">
-                <div className="sidebar-header">
-                    <button className="back-btn" onClick={onBack}>&larr; 返回</button>
-                    <h3>編輯器</h3>
-                </div>
+            {/* Bottom/Sidebar Controls */}
+            <div className="editor-sidebar-wrapper">
+                <div className="editor-sidebar">
+                    <div className="sidebar-header">
+                        <button className="back-btn" onClick={onBack}>&larr; 返回</button>
+                        <h3>編輯內容</h3>
+                    </div>
 
-                <div className="control-group">
-                    <h3>背景圖片 (Background)</h3>
-                    <button className="primary-btn" onClick={() => fileInputRef.current.click()}>
-                        上傳圖片 (Upload)
-                    </button>
-                    <input type="file" hidden ref={fileInputRef} onChange={handleImageUpload} accept="image/*" />
-
-                    <div className="slider-group">
-                        <div className="label-wrapper">
-                            <label>縮放 (Scale)</label>
-                            <span className="value-display">{bgPosition.scale.toFixed(2)}</span>
+                    <div className="control-group">
+                        <div className="group-header">
+                            <label>背景圖片</label>
                         </div>
-                        <input
-                            type="range"
-                            min="0.1"
-                            max="5"
-                            step="0.01"
-                            value={bgPosition.scale}
-                            onChange={e => setBgPosition({ ...bgPosition, scale: parseFloat(e.target.value) })}
-                        />
+                        <button className="glass-btn primary" onClick={() => fileInputRef.current.click()}>
+                            <span>📁 上傳圖片</span>
+                        </button>
+                        <input type="file" hidden ref={fileInputRef} onChange={handleImageUpload} accept="image/*" />
+
+                        <div className="slider-group">
+                            <div className="label-wrapper">
+                                <label>圖片縮放</label>
+                                <span className="value-label">{Math.round(bgPosition.scale * 100)}%</span>
+                            </div>
+                            <input
+                                type="range"
+                                min="0.05"
+                                max="3"
+                                step="0.01"
+                                value={bgPosition.scale}
+                                onChange={e => setBgPosition({ ...bgPosition, scale: parseFloat(e.target.value) })}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="control-group">
+                        <div className="group-header">
+                            <label>文字圖層</label>
+                            <button className="add-text-btn" onClick={() => setTexts([...texts, { id: Date.now(), text: "新文字", x: 540, y: 540, fontSize: 60, align: 'center' }])}>
+                                + 新增
+                            </button>
+                        </div>
+
+                        {texts.map(t => (
+                            <div key={t.id} className="text-card-control">
+                                <div className="text-card-row">
+                                    <textarea
+                                        placeholder="在此輸入文字..."
+                                        value={t.text}
+                                        onChange={e => setTexts(texts.map(tx => tx.id === t.id ? { ...tx, text: e.target.value } : tx))}
+                                    />
+                                    <button className="icon-btn delete" onClick={() => setTexts(texts.filter(tx => tx.id !== t.id))}>
+                                        ✕
+                                    </button>
+                                </div>
+
+                                <div className="text-card-sliders">
+                                    <div className="slider-item">
+                                        <div className="label-wrapper">
+                                            <label>大小</label>
+                                            <input
+                                                type="number"
+                                                value={t.fontSize}
+                                                onChange={e => setTexts(texts.map(tx => tx.id === t.id ? { ...tx, fontSize: parseInt(e.target.value) || 0 } : tx))}
+                                            />
+                                        </div>
+                                        <input
+                                            type="range" min="10" max="300" value={t.fontSize}
+                                            onChange={e => setTexts(texts.map(tx => tx.id === t.id ? { ...tx, fontSize: parseInt(e.target.value) } : tx))}
+                                        />
+                                    </div>
+                                    <div className="slider-item">
+                                        <div className="label-wrapper">
+                                            <label>位置 (Y)</label>
+                                            <input
+                                                type="number"
+                                                value={t.y}
+                                                onChange={e => setTexts(texts.map(tx => tx.id === t.id ? { ...tx, y: parseInt(e.target.value) || 0 } : tx))}
+                                            />
+                                        </div>
+                                        <input
+                                            type="range" min="0" max={TEMPLATE_SIZE.h} value={t.y}
+                                            onChange={e => setTexts(texts.map(tx => tx.id === t.id ? { ...tx, y: parseInt(e.target.value) } : tx))}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="align-segmented">
+                                    <button className={t.align === 'left' ? 'active' : ''} onClick={() => setTexts(texts.map(tx => tx.id === t.id ? { ...tx, align: 'left' } : tx))}>左</button>
+                                    <button className={t.align === 'center' ? 'active' : ''} onClick={() => setTexts(texts.map(tx => tx.id === t.id ? { ...tx, align: 'center' } : tx))}>中</button>
+                                    <button className={t.align === 'right' ? 'active' : ''} onClick={() => setTexts(texts.map(tx => tx.id === t.id ? { ...tx, align: 'right' } : tx))}>右</button>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
 
-                <div className="control-group">
-                    <h3>文字 (Text)</h3>
-                    {texts.map(t => (
-                        <div key={t.id} className="text-control">
-                            <div className="text-header">
-                                <textarea
-                                    value={t.text}
-                                    onChange={e => setTexts(texts.map(tx => tx.id === t.id ? { ...tx, text: e.target.value } : tx))}
-                                />
-                                <button className="delete-btn" onClick={() => setTexts(texts.filter(tx => tx.id !== t.id))}>🗑️</button>
-                            </div>
-
-                            <div className="size-control">
-                                <div className="label-wrapper">
-                                    <label>大小 (Size)</label>
-                                    <input
-                                        type="number" className="precision-input" value={t.fontSize}
-                                        onChange={e => setTexts(texts.map(tx => tx.id === t.id ? { ...tx, fontSize: parseInt(e.target.value) || 0 } : tx))}
-                                    />
-                                </div>
-                                <input
-                                    type="range" min="10" max="300" value={t.fontSize}
-                                    onChange={e => setTexts(texts.map(tx => tx.id === t.id ? { ...tx, fontSize: parseInt(e.target.value) } : tx))}
-                                />
-                            </div>
-
-                            <div className="size-control">
-                                <div className="label-wrapper">
-                                    <label>位置 (Y)</label>
-                                    <input
-                                        type="number" className="precision-input" value={t.y}
-                                        onChange={e => setTexts(texts.map(tx => tx.id === t.id ? { ...tx, y: parseInt(e.target.value) || 0 } : tx))}
-                                    />
-                                </div>
-                                <input
-                                    type="range" min="0" max={TEMPLATE_SIZE.h} value={t.y}
-                                    onChange={e => setTexts(texts.map(tx => tx.id === t.id ? { ...tx, y: parseInt(e.target.value) } : tx))}
-                                />
-                            </div>
-
-                            <div className="align-control">
-                                <button className={t.align === 'left' ? 'active' : ''} onClick={() => setTexts(texts.map(tx => tx.id === t.id ? { ...tx, align: 'left' } : tx))}>左</button>
-                                <button className={t.align === 'center' ? 'active' : ''} onClick={() => setTexts(texts.map(tx => tx.id === t.id ? { ...tx, align: 'center' } : tx))}>中</button>
-                                <button className={t.align === 'right' ? 'active' : ''} onClick={() => setTexts(texts.map(tx => tx.id === t.id ? { ...tx, align: 'right' } : tx))}>右</button>
-                            </div>
-                        </div>
-                    ))}
-                    <button className="primary-btn outline" onClick={() => setTexts([...texts, { id: Date.now(), text: "新文字", x: 540, y: 540, fontSize: 60, align: 'center' }])}>
-                        + 新增文字
+                <div className="sidebar-footer">
+                    <button className="download-fab" onClick={handleDownload}>
+                        <span className="icon">⬇️</span> 下載高品質 JPG
                     </button>
                 </div>
             </div>
-
-            <button className="download-btn" onClick={handleDownload}>
-                下載圖片 (Download)
-            </button>
         </div>
     );
 };
